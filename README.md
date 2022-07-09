@@ -2,18 +2,18 @@
  
 This repository contains all files needed to build a notification egg.
 
-<video src="https://giant.gfycat.com/CourteousFlatCygnet.mp4" width="360"></video>
+![Video](https://giant.gfycat.com/CourteousFlatCygnet.mp4)
 
-[!Cracked egg](images/egg_cracked.jpg)
+![Cracked egg](images/egg_cracked.jpg)
 
 [Link to original reddit post](https://www.reddit.com/r/homeassistant/comments/vv33gt/i_made_this_egg_that_shows_multiple_notifications/)
 
 ## BOM
 | Picture | Role | Component | Comment |
 |-|-|-|-|
-|[!Picture of ESP32](images/d1mini-esp32.jpg)|Microcontroller | ESP32 | ESP8266 is sufficient for displays with smaller resolution/color space due to their RAM requirements.<br> I used a WeMos D1 Mini ESP32 for its compact form.|
-|[!Picture of GC9A01](images/gc9a01.png)| Display | GC9A01 | I love the look of this round 240x240 screen, but it requires a lot of RAM to drive. In an earlier version, I used a SSD1306 0.96" OLED (STL included)|
-|[!Picture of SK6812 144/m](images/sk6812-144.jpg)| LED Strip | SK6812 (144LED/m) | More LEDs make for a smoother effect. If you want to go with a non-addressable LED strip, maybe my horrible ESPHome effect can serve as a starting point for you|
+|![Picture of ESP32](images/d1mini-esp32.jpg)|Microcontroller | ESP32 | ESP8266 is sufficient for displays with smaller resolution/color space due to their RAM requirements.<br> I used a WeMos D1 Mini ESP32 for its compact form.|
+|![Picture of GC9A01](images/gc9a01.png)| Display | GC9A01 | I love the look of this round 240x240 screen, but it requires a lot of RAM to drive. In an earlier version, I used a SSD1306 0.96" OLED (STL included)|
+|![Picture of SK6812 144/m](images/sk6812-144.jpg)| LED Strip | SK6812 (144LED/m) | More LEDs make for a smoother effect. If you want to go with a non-addressable LED strip, maybe my horrible ESPHome effect can serve as a starting point for you|
 
 ### Miscellaneous/optional components
 - MicroUSB Breakout Module: Helps so I don't have to position the ESP near the hole for the wire, also provides some sort of strain relief. Hotglued to the bottom of the inside.
