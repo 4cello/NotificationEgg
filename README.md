@@ -21,7 +21,7 @@ This repository contains all files needed to build a notification egg.
 - MicroUSB Breakout Module: Helps so I don't have to position the ESP near the hole for the wire, also provides some sort of strain relief. Hotglued to the bottom of the inside.
 - 80mm x 2mm Aluminium Tube: Cut to 18mm length and added a slot for the wires of the LED strip. Serves as unnecessary heatsink for the LEDs, but the adhesive sticks better to it than to the printed ring...
 - 2 M5 threaded heat inserts: Can be inserted into the top to attach the halves together with some ~30mm+ M5 bolts. In hindsight not necessary, my friction fit of the aluminium tube is strong enough so it doesn't come apart easily.
-- Perfboard: For connecting ESP and the rest. I don't like to solder stuff directly to my MCUs, mostly for misplaced reusability.
+- Perfboard & Connectors: For connecting ESP and the rest. I don't like to solder stuff directly to my MCUs, mostly for misplaced reusability. I used JST XH connectors. I hate crimping...
 - Transistor & Resistor: I used a BC337-40 NPN transistor connected via a 1k resistor to the ESP as an electrical switch between the MCU's and the display's `GND` so the MCU can completely turn off the display. However, I didn't expand on this feature (yet?)
 
 ## Wiring
