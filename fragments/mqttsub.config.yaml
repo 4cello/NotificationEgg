@@ -1,0 +1,60 @@
+topic: "esphome/$devicename/notify/${color}"
+then:
+- logger.log:
+    level: INFO
+    format: "Received new timestamp for ${color}: %s"
+    args: ["x.c_str()" ]
+- if:
+    # check if received timestamp > last known timestamp
+    condition:
+      lambda: |-
+        time_t end = atoll(x.c_str());
+        time_t old = id(pending_notifications)[${index}];
+        return end > old;
+    then:
+      # received timestamp > last known timestamp:
+      #   -> set new timestamp
+      - lambda: |-
+          time_t end = atoll(x.c_str());
+          time_t old = id(pending_notifications)[${index}];
+          id(pending_notifications)[${index}] = end;
+          id(notification_received)[${index}] = id(sntp_time).now().timestamp;
+      - if:
+          # check if the clock is synced and if the received timestamp is still valid 
+          condition:
+            lambda: |-
+              time_t end = atoll(x.c_str());
+              auto now = id(sntp_time).now();
+              return now.is_valid() && now.timestamp < end;
+          then:
+            # flash the light and change the display page
+            - script.execute: scroll_next_page
+            - repeat:
+                count: 3
+                then:
+                  - light.turn_off:
+                      id: notification_light
+                      transition_length: 0.5s
+                  - delay: 0.5s
+                  - light.turn_on:
+                      id: notification_light
+                      brightness: 100%
+                      red: !lambda return id(colors)[${index}][0] / 255;
+                      green: !lambda return id(colors)[${index}][1] / 255;
+                      blue: !lambda return id(colors)[${index}][2] / 255;
+                      white: !lambda return id(colors)[${index}][3] / 255;
+                      transition_length: 0.5s
+                  - delay: 0.5s
+            - light.turn_on:
+                id: notification_light
+                effect: Notification Effect
+    else:
+      # received timestamp <= last known timestamp:
+      #   -> cancel notification if timestamp == 0
+      - lambda: |-
+          time_t end = atoll(x.c_str());
+          time_t old = id(pending_notifications)[${index}];
+          if (end == 0) {
+            id(pending_notifications)[${index}] = 0;
+            id(notification_received)[${index}] = 0;
+          }

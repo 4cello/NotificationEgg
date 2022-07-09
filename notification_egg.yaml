@@ -1,0 +1,440 @@
+substitutions:
+  devicename: notification-egg
+  num_colors: "6"
+
+  # Display parameters
+  text_x: "40"
+  text_y: "180"
+  image_x: "45"
+  image_y: "20"
+
+  # Button Parameter
+  debug_duration: "60"
+
+external_components:
+  - source: github://pr#3625
+    components: [ gc9a01 ]
+
+esphome:
+  name: $devicename
+  build_path: build/$devicename
+  platform: ESP32
+  board: nodemcu-32s
+  on_boot:
+    priority: -200
+    then:
+      - display.page.show: page_default
+      - light.turn_on:
+          id: notification_light
+          effect: "Notification Effect"
+
+wifi:
+    ssid: !secret ssid
+    password: !secret wifi_password
+
+ota:
+
+mqtt:
+  broker: !secret mqtt_broker 
+  topic_prefix: esphome/$devicename
+  username: !secret mqtt_username
+
+time:
+  - platform: sntp
+    id: sntp_time
+
+globals:
+  - id: page_current
+    type: uint8_t
+    initial_value: "${num_colors}"
+  - id: page_next
+    type: uint8_t
+    initial_value: ${num_colors}
+  - id: colors
+    type: Color[${num_colors}]
+    initial_value: |-
+      {
+        Color(255,0,0,0), // red
+        Color(0,255,0,0), // green
+        Color(0,0,255,0), // blue
+        Color(255,255,0,0), // yellow
+        Color(0,255,255,0), // cyan
+        Color(255,0,255,0) // magenta
+        // don't forget to change the num_colors substitution!!!
+      }
+  - id: pending_notifications
+    type: time_t[${num_colors}]
+    initial_value: |-
+      {
+        0,0,0,0,0,0
+      }
+  - id: notification_received
+    type: time_t[${num_colors}]
+    initial_value: |-
+      {
+        0,0,0,0,0,0
+      }
+
+interval:
+  - interval: 10s
+    then:
+      - script.execute: clean_overdue_notifications
+      - script.execute: scroll_next_page
+      - component.update: txt_notifications
+
+script:
+  - id: clean_overdue_notifications
+    mode: single
+    then:
+      lambda: |-
+        uint8_t len = sizeof(id(colors)) / sizeof(Color*);
+        auto now = id(sntp_time).now();
+        if (!now.is_valid()) 
+          return;
+        time_t utc = now.timestamp;
+        for (uint8_t i = 0; i < len; i++) {
+          time_t old = id(pending_notifications)[i];
+          if (!old) continue;
+          if (utc >= old) {
+            id(pending_notifications)[i] = 0;
+            id(notification_received)[i] = 0;
+            ESP_LOGI("interval", "reset %u: %li >= %li", i, utc, old);
+          }
+        }
+  - id: scroll_next_page
+    mode: single
+    then:
+      - globals.set:
+          id: page_next
+          value: !lambda |-
+            uint8_t len = sizeof(id(colors)) / sizeof(Color*);
+            uint8_t current_page = id(page_current);
+            time_t current_timestamp = 0;
+            uint8_t start_offset = 0;
+            if (current_page < len) {
+              current_timestamp = id(pending_notifications)[current_page];
+              start_offset++; // if we are at default page, adding 0 to the index gets us to the next page
+            }
+            time_t next_timestamp = 0;
+            uint8_t next_page = current_page;
+            // iterate over all notification classes
+            // starting after the current one
+            for (uint8_t i = start_offset; i < len; i++) {
+              next_page = (current_page + i) % len;
+              next_timestamp = id(pending_notifications)[next_page];
+              // if the page has a timestamp:
+                // return page
+              if (next_timestamp > 0) {
+                return next_page;
+              }
+            }
+            // no other notification class has been found
+            // check if current class is inactive
+            if (current_timestamp == 0) {
+              // if no class is active, show default page
+              return len;
+            } else {
+              // if current class is still active, do nothing
+              return current_page;
+            }
+            return current_page;
+      - logger.log:
+          level: DEBUG
+          tag: "scrollnextpage"
+          format: "current_page=%d, next_page=%d"
+          args: [ "id(page_current)", "id(page_next)" ]
+      - display.page.show: page_default
+      - repeat:
+          count: !lambda "return id(page_next)+1;"
+          then:
+            - display.page.show_next: notification_display
+      - globals.set:
+          id: page_current
+          value: !lambda return id(page_next);
+      - component.update: notification_display
+
+
+mqtt:
+  on_message:
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          index: 0
+          color: red
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          index: 1
+          color: green
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          index: 2
+          color: blue
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          index: 3
+          color: yellow
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          index: 4
+          color: cyan
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          index: 5
+          color: magenta
+
+button:
+  - platform: template
+    name: "Cycle display page"
+    on_press:
+      - script.execute: scroll_next_page
+  - <<: !include
+      file: fragments/button.config.yaml
+      vars:
+        color: red
+  - <<: !include
+      file: fragments/button.config.yaml
+      vars:
+        color: green
+  - <<: !include
+      file: fragments/button.config.yaml
+      vars:
+        color: blue
+  - <<: !include
+      file: fragments/button.config.yaml
+      vars:
+        color: yellow
+  - <<: !include
+      file: fragments/button.config.yaml
+      vars:
+        color: cyan
+  - <<: !include
+      file: fragments/button.config.yaml
+      vars:
+        color: magenta
+
+text_sensor:
+  - platform: template
+    name: Current Notifications
+    id: txt_notifications
+    entity_category: diagnostic
+    lambda: |-
+      std::string color_names[] = {
+        "red", "green", "blue", "yellow", "cyan", "magenta"
+      };
+      uint8_t len = sizeof(id(colors)) / sizeof(Color*);
+      char buf[50];
+      std::string result = "{";
+      for (uint8_t i = 0; i < len; i++) {
+        sprintf(buf, "\"%s\": %li%s",
+          color_names[i].c_str(), id(pending_notifications)[i], (i == len - 1) ? "" : ",");
+        result += std::string(buf);
+      }
+      result += std::string("}");
+      return result;
+
+font:
+  - file: "gfonts://Roboto"
+    id: roboto_32
+    size: 32
+  - file: "gfonts://Roboto@900"
+    id: roboto_big
+    size: 100
+
+
+image:
+  - file: "resources/doorbell.png"
+    id: img_doorbell
+    resize: 160x160
+    type: TRANSPARENT_BINARY
+  - file: "resources/washing_machine.png"
+    id: img_washing_machine
+    resize: 160x160
+    type: TRANSPARENT_BINARY
+  - file: "resources/dishwasher.png"
+    id: img_dishwasher
+    resize: 160x160
+    type: TRANSPARENT_BINARY
+  - file: "resources/lightbulb.png"
+    id: img_lightbulb
+    resize: 160x160
+    type: TRANSPARENT_BINARY
+  - file: "resources/open_window.png"
+    id: img_window
+    resize: 160x160
+    type: TRANSPARENT_BINARY
+  - file: "resources/phone.png"
+    id: img_phone
+    resize: 160x160
+    type: TRANSPARENT_BINARY
+
+spi:
+  mosi_pin: GPIO23
+  clk_pin: GPIO18
+
+display:
+  - platform: gc9a01
+    id: notification_display
+    reset_pin: GPIO26
+    cs_pin: GPIO5
+    dc_pin: GPIO19
+    rotation: 270
+    update_interval: 1h
+    pages:
+      - id: page_default
+        lambda: |-
+          auto time = id(sntp_time).now();
+          if (time.is_valid()) {
+            it.strftime(60,15, id(roboto_big), "%H", time);
+            it.strftime(60,105, id(roboto_big), "%M", time);
+          } else {
+            it.print(0,140, id(roboto_32), "not synced");
+          }
+      - <<: !include
+          file: fragments/display_page.config.yaml
+          vars:
+            page_index: 0
+            image: img_doorbell
+      - <<: !include
+          file: fragments/display_page.config.yaml
+          vars:
+            page_index: 1
+            image: img_washing_machine
+      - <<: !include
+          file: fragments/display_page.config.yaml
+          vars:
+            page_index: 2
+            image: img_dishwasher
+      - <<: !include
+          file: fragments/display_page.config.yaml
+          vars:
+            page_index: 3
+            image: img_window
+      - <<: !include
+          file: fragments/display_page.config.yaml
+          vars:
+            page_index: 4
+            image: img_lightbulb
+      - <<: !include
+          file: fragments/display_page.config.yaml
+          vars:
+            page_index: 5
+            image: img_phone
+
+switch:
+  - platform: gpio
+    pin: GPIO16
+    name: "Display on/off"
+    id: display_switch
+    restore_mode: ALWAYS_ON
+
+light:
+  - platform: neopixelbus
+    variant: SK6812
+    type: GRBW
+    pin: GPIO32
+    num_leds: 35
+    name: "Notification Light"
+    id: notification_light
+    entity_category: config
+    default_transition_length: 0s
+    flash_transition_length: 0.5s
+    effects:
+      - addressable_lambda:
+          name: "Notification Effect"
+          update_interval: 16ms
+          lambda: |-
+            // ---------- CONFIG START -------------
+            // Width of color spot in pixels
+            #define COLOR_WIDTH 3
+
+            // How far from the end should pixels begin to fade out?
+            #define FADE_OUT 5
+
+            // Brightness of each pixel in a color spot. Length must be == COLOR_WIDTH
+            static float COLOR_SHAPE[COLOR_WIDTH] = {64,128,64};
+
+            // How many blank pixels between 2 notification spots?
+            static uint8_t BETWEEN_COLORS = 5;
+
+            // How many blank pixels until starting over?
+            static uint8_t BETWEEN_CYCLES = 3*it.size();
+            // ---------- CONFIG END ---------------
+
+            // How many notification colors are there?
+            static uint8_t COLOR_COUNT = sizeof(id(colors)) / sizeof(Color*);
+
+            // Counter for space between color segments
+            static uint8_t cycles_until_next_color = 0;
+
+            // Counter for width of color segments
+            static uint8_t cycles_until_color_ends = COLOR_WIDTH;
+
+            // Counter for current notification color
+            static uint8_t notification_class = 0;
+
+            // Should be named current_color, but that one is already taken :(
+            static Color next_color;
+
+            // shift every pixel over, fading out the last couple ones
+            uint8_t px = it.size()-1;
+            for (; px >= it.size()-FADE_OUT-1; px--) {
+              it[px] = it[px-1].get().darken(255/FADE_OUT);
+            }
+            // shift the rest
+            for (; px > 0; px--) {
+              it[px] = it[px-1].get();
+            }
+
+            // now decide which color the first pixel will be
+            if (cycles_until_next_color > 0) {
+              // no color is being added
+              it[0] = Color::BLACK;
+              cycles_until_next_color--;
+            } else {
+              // there is currently a color being added
+              time_t is_active = id(pending_notifications)[notification_class];
+              if (is_active) {
+                next_color = id(colors)[notification_class];
+              } else {
+                next_color = Color::BLACK;
+              }
+              it[0] = next_color.darken(255-COLOR_SHAPE[cycles_until_color_ends-1]);
+              if (cycles_until_color_ends > 0) {
+                // continue to finish this color
+                cycles_until_color_ends--;
+              } else {
+                // prepare next color
+                cycles_until_color_ends = COLOR_WIDTH;
+                if (notification_class >= COLOR_COUNT-1) {
+                  // we're at notification_class >= COLOR_COUNT-1
+                  // reset notification_class and prepare for full cycle
+                  notification_class = 0;
+                  cycles_until_next_color = BETWEEN_CYCLES;
+                } else {
+                  // we're at some notification_class < COLOR_COUNT - 1
+                  // find the next "non-empty" class
+                  notification_class++;
+                  for (; notification_class < COLOR_COUNT; notification_class++) {
+                    is_active = id(pending_notifications)[notification_class];
+                    if (is_active) {
+                      break;
+                    }
+                  }
+                  if (notification_class < COLOR_COUNT && is_active) {
+                    // there is actually a "non-empty" class
+                    // set its color and prepare small spacing
+                    cycles_until_next_color = BETWEEN_COLORS;
+                  } else {
+                    // we arrived at notification_class == 0 without finding an active class
+                    // reset notification_class and prepare for full cycle
+                    notification_class = 0;
+                    cycles_until_next_color = BETWEEN_CYCLES;
+                  }
+                }
+              }
+            }
