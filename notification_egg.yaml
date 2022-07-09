@@ -1,6 +1,23 @@
 substitutions:
   devicename: notification-egg
+
+  # General Parameters
+  refresh_interval: 10s
+  light_effect_interval: 16ms
+  
+  # Color Parameters
   num_colors: "6"
+  color_values: |-
+    {
+      Color(255,0,0,0), // red
+      Color(0,255,0,0), // green
+      Color(0,0,255,0), // blue
+      Color(255,255,0,0), // yellow
+      Color(0,255,255,0), // cyan
+      Color(255,0,255,0) // magenta
+    }
+  color_names: '{ "red", "green", "blue", "yellow", "cyan", "magenta" }'
+  empty_array: "{ 0,0,0,0,0,0 }"
 
   # Display parameters
   text_x: "40"
@@ -9,7 +26,7 @@ substitutions:
   image_y: "20"
 
   # Button Parameter
-  debug_duration: "60"
+  debug_duration: "60" # (in seconds)
 
 external_components:
   - source: github://pr#3625
@@ -34,11 +51,6 @@ wifi:
 
 ota:
 
-mqtt:
-  broker: !secret mqtt_broker 
-  topic_prefix: esphome/$devicename
-  username: !secret mqtt_username
-
 time:
   - platform: sntp
     id: sntp_time
@@ -52,31 +64,34 @@ globals:
     initial_value: ${num_colors}
   - id: colors
     type: Color[${num_colors}]
-    initial_value: |-
-      {
-        Color(255,0,0,0), // red
-        Color(0,255,0,0), // green
-        Color(0,0,255,0), // blue
-        Color(255,255,0,0), // yellow
-        Color(0,255,255,0), // cyan
-        Color(255,0,255,0) // magenta
-        // don't forget to change the num_colors substitution!!!
-      }
+    initial_value: ${color_values}
   - id: pending_notifications
     type: time_t[${num_colors}]
-    initial_value: |-
-      {
-        0,0,0,0,0,0
-      }
+    initial_value: ${empty_array}
   - id: notification_received
     type: time_t[${num_colors}]
-    initial_value: |-
-      {
-        0,0,0,0,0,0
+    initial_value: ${empty_array}
+
+text_sensor:
+  - platform: template
+    name: Current Notifications
+    id: txt_notifications
+    entity_category: diagnostic
+    lambda: |-
+      std::string color_names[] = ${color_names};
+      uint8_t len = sizeof(id(colors)) / sizeof(Color*);
+      char buf[50];
+      std::string result = "{";
+      for (uint8_t i = 0; i < len; i++) {
+        sprintf(buf, "\"%s\": %li%s",
+          color_names[i].c_str(), id(pending_notifications)[i], (i == len - 1) ? "" : ",");
+        result += std::string(buf);
       }
+      result += std::string("}");
+      return result;
 
 interval:
-  - interval: 10s
+  - interval: ${refresh_interval}
     then:
       - script.execute: clean_overdue_notifications
       - script.execute: scroll_next_page
@@ -155,6 +170,9 @@ script:
 
 
 mqtt:
+  broker: !secret mqtt_broker 
+  topic_prefix: esphome/$devicename
+  username: !secret mqtt_username
   on_message:
     - <<: !include
         file: fragments/mqttsub.config.yaml
@@ -216,26 +234,6 @@ button:
       file: fragments/button.config.yaml
       vars:
         color: magenta
-
-text_sensor:
-  - platform: template
-    name: Current Notifications
-    id: txt_notifications
-    entity_category: diagnostic
-    lambda: |-
-      std::string color_names[] = {
-        "red", "green", "blue", "yellow", "cyan", "magenta"
-      };
-      uint8_t len = sizeof(id(colors)) / sizeof(Color*);
-      char buf[50];
-      std::string result = "{";
-      for (uint8_t i = 0; i < len; i++) {
-        sprintf(buf, "\"%s\": %li%s",
-          color_names[i].c_str(), id(pending_notifications)[i], (i == len - 1) ? "" : ",");
-        result += std::string(buf);
-      }
-      result += std::string("}");
-      return result;
 
 font:
   - file: "gfonts://Roboto"
@@ -346,7 +344,7 @@ light:
     effects:
       - addressable_lambda:
           name: "Notification Effect"
-          update_interval: 16ms
+          update_interval: ${light_effect_interval}
           lambda: |-
             // ---------- CONFIG START -------------
             // Width of color spot in pixels
@@ -356,17 +354,17 @@ light:
             #define FADE_OUT 5
 
             // Brightness of each pixel in a color spot. Length must be == COLOR_WIDTH
-            static float COLOR_SHAPE[COLOR_WIDTH] = {64,128,64};
+            static const float COLOR_SHAPE[COLOR_WIDTH] = {64,128,64};
 
             // How many blank pixels between 2 notification spots?
-            static uint8_t BETWEEN_COLORS = 5;
+            static const uint8_t BETWEEN_COLORS = 5;
 
             // How many blank pixels until starting over?
-            static uint8_t BETWEEN_CYCLES = 3*it.size();
+            static const uint8_t BETWEEN_CYCLES = 3*it.size();
             // ---------- CONFIG END ---------------
 
             // How many notification colors are there?
-            static uint8_t COLOR_COUNT = sizeof(id(colors)) / sizeof(Color*);
+            static const uint8_t COLOR_COUNT = sizeof(id(colors)) / sizeof(Color*);
 
             // Counter for space between color segments
             static uint8_t cycles_until_next_color = 0;
