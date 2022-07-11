@@ -2,7 +2,7 @@ platform: template
 name: "Test $color notification"
 on_press:
   - mqtt.publish:
-      topic: "esphome/$devicename/notify/$color"
+      topic: "${mqtt_topic}/${color}"
       payload: !lambda |-
         char buf[32]; 
         return itoa(id(sntp_time).now().timestamp + ${debug_duration}, buf, 10);

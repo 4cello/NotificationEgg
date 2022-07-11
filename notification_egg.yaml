@@ -4,6 +4,7 @@ substitutions:
   # General Parameters
   refresh_interval: 10s
   light_effect_interval: 16ms
+  mqtt_topic: esphome/$devicename/notify # /${color} for each color
   
   # Color Parameters
   num_colors: "6"
@@ -28,13 +29,15 @@ substitutions:
   # Button Parameter
   debug_duration: "60" # (in seconds)
 
+packages:
+  wifi: !include fragments/common/wifi.config.yaml
+  device_base: !include fragments/common/device_base.config.yaml
+
 external_components:
   - source: github://pr#3625
     components: [ gc9a01 ]
 
 esphome:
-  name: $devicename
-  build_path: build/$devicename
   platform: ESP32
   board: nodemcu-32s
   on_boot:
@@ -44,12 +47,6 @@ esphome:
       - light.turn_on:
           id: notification_light
           effect: "Notification Effect"
-
-wifi:
-    ssid: !secret ssid
-    password: !secret wifi_password
-
-ota:
 
 time:
   - platform: sntp
@@ -170,9 +167,6 @@ script:
 
 
 mqtt:
-  broker: !secret mqtt_broker 
-  topic_prefix: esphome/$devicename
-  username: !secret mqtt_username
   on_message:
     - <<: !include
         file: fragments/mqttsub.config.yaml

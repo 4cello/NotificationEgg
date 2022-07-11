@@ -1,4 +1,4 @@
-topic: "esphome/$devicename/notify/${color}"
+topic: "${mqtt_topic}/${color}"
 then:
 - logger.log:
     level: INFO
