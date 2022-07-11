@@ -4,3 +4,5 @@
 /.esphome/
 /secrets.yaml
 build/
+
+fragments/common/*.config.yaml
