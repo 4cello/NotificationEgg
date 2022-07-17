@@ -28,9 +28,11 @@ This repository contains all files needed to build a notification egg.
 Wiring is mostly self-explanatory. All pins of the components are connected to the ESP according to the ESPHome YAML configuration. Change at your own will. Since I was using a MicroUSB breakout board, I connected the 5V of the LED strip directly to it instead of through the ESP board.
 
 ## Software
-The device is controlled via MQTT. It subscribes to a topic `esphome/notification_egg/notify/{COLOR}` for each `COLOR` in `red`,`green`,`blue`,`cyan`,`yellow` and `magenta`. When a timestamp (in: seconds since 01.01.1970) is published to that topic, the device interprets this timestamp as an "expiration date" for the notification of that color. If a timestamp arrives which has an earlier expiration date than a previous notification of this color, it is ignored. When a timestamp of `0` is received, the notification gets cancelled immediately, no matter its original expiration date.
+The device is controlled via MQTT. It subscribes to a topic `esphome/{devicename}/notify/{COLOR}` for each `COLOR` in `red`,`green`,`blue`,`cyan`,`yellow` and `magenta` (where `{devicename}` is set at the top of the config). When a timestamp (in: seconds since 01.01.1970) is published to that topic, the device interprets this timestamp as an "expiration date" for the notification of that color. If a timestamp arrives which has an earlier expiration date than a previous notification of this color, it is ignored. When a timestamp of `0` is received, the notification gets cancelled immediately, no matter its original expiration date.
 ### Firmware
 The firmware for the ESP is built and uploaded by [ESPHome](https://esphome.io) using `esphome run notification_egg.yaml`. If you don't know about ESPHome, make sure to check it out, it is a simple and awesome way to create firmware for ESP based devices that provides many handy features, like automatic MQTT exposure for your components as well as seamless integration with Home Assistant via their native API or MQTT discovery.
+
+Currently, there are 2 versions: `notification_light.yaml`, which only controls an LED strip and `notification_light_with_display.yaml`, which adds support for the GC9A01 display. In any case, make sure to change the GPIO pins in the `substitutions` section on top of the file, as well as `platform` and `board` in the `esphome` section, depending on your setup.
 
 ### Config sections
 A brief overview over sections of the config that might require some context to understand.
@@ -38,13 +40,14 @@ A brief overview over sections of the config that might require some context to 
 - `text_sensor`: The device exposes a text sensor which contains a JSON of the form `color_name: expiration_timestamp`.
 - `interval`: At regular intervals (specified by the `refresh_interval` substitution), this checks and deletes any expired notifications, updates the `text_sensor` JSON and scrolls to the next relevant page on the screen, if there is one.
 - `script`: This is where some magic happens
-    - `clean_overdue_notifications`: Checks for each notification class if it should be still active. If not, changes the saved timestamp to 0.
+    - `clean_overdue_notifications`: Checks for each notification class if it should be still active. If not, changes the saved timestamp to 0. (Update: Moved to `fragments/script_clean_overdue.config.yaml`)
     - `scroll_next_page`: Changes the displayed page on the screen to the next relevant one. If no notification is active, go to `page_default`, which shows the current time. Else, cycle between the active notification pages and update the `display` component.
 -  `mqtt.on_message`: Creates the subscription for each color. The included file requires the name of the color (for the topic) and the index of that color in the global arrays.
 - `button`: For each color, a button is created. This button just publishes to the corresponding topic. The timestamp which is published depends on the `debug_duration` parameter, since its value is added to the current timestamp. I used the buttons for debugging during development, but if you don't want to clutter up your Home Assistant you can just delete the whole section.
 - `image`: Defines the images which are shown on the display. I chose to convert them to `TRANSPARENT_BINARY` so I could later display them in the corresponding color.
 - `display.pages`: The default page displays the current time, after that the pages for each notification are created. The import requires the `index` of the color, as well as the id of the `image` to display.
 - `switch`: I added a transistor between the display's and the ESP's `GND`, which is controlled by a GPIO pin and can be used to turn off the display. I don't currently use this feature, but by exposing it as a `switch` I can now create a "night mode" just through Home Assistant.
+- `light`: Controls the LED strip. (Update: Moved to `fragments/light.config.yaml`)
 - `light.effects.addressable_lambda`: This is the custom effect for the traveling dots. For every active notification, it's dot is "appended". I tried to add many comments, mostly for my own sanity during development, as it took a while to wrap my head around the way one has to write custom effects in this manner. In each step, every pixel is shifted once to the "right", and the rest of the code has the noble task of figuring out what color the first pixel should have. The speed of the effect is controlled by the substition `light_effect_interval`, but there are several other parameters in the code itself that change things like the width of each colored spot.
 
 ### Adapting the configuration

@@ -7,6 +7,9 @@ substitutions:
   light_effect_interval: 16ms
   mqtt_topic: esphome/$devicename/notify # /${color} for each color
   
+  # GPIO Pins
+  led_pin: D4
+
   # Color Parameters
   num_colors: "6"
   color_values: |-
@@ -133,4 +136,4 @@ light:
   - <<: !include
       file: fragments/light.config.yaml
       vars:
-        pin: D4
+        pin: ${led_pin}

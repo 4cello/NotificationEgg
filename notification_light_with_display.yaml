@@ -6,6 +6,17 @@ substitutions:
   refresh_interval: 10s
   light_effect_interval: 16ms
   mqtt_topic: esphome/$devicename/notify # /${color} for each color
+
+  # GPIO Pins
+  led_pin: GPIO32
+
+  spi_mosi_pin: GPIO23
+  spi_clk_pin: GPIO18
+
+  display_reset_pin: GPIO26
+  display_cs_pin: GPIO5
+  display_dc_pin: GPIO19
+  display_on_off_pin: GPIO16
   
   # Color Parameters
   num_colors: "6"
@@ -250,15 +261,15 @@ image:
     type: TRANSPARENT_BINARY
 
 spi:
-  mosi_pin: GPIO23
-  clk_pin: GPIO18
+  mosi_pin: ${spi_mosi_pin}
+  clk_pin: ${spi_clk_pin}
 
 display:
   - platform: gc9a01
     id: notification_display
-    reset_pin: GPIO26
-    cs_pin: GPIO5
-    dc_pin: GPIO19
+    reset_pin: ${display_reset_pin}
+    cs_pin: ${display_cs_pin}
+    dc_pin: ${display_dc_pin}
     rotation: 270
     update_interval: 1h
     pages:
@@ -304,7 +315,7 @@ display:
 
 switch:
   - platform: gpio
-    pin: GPIO16
+    pin: ${display_on_off_pin}
     name: "Display on/off"
     id: display_switch
     restore_mode: ALWAYS_ON
@@ -313,4 +324,4 @@ light:
   - <<: !include
       file: fragments/light.config.yaml
       vars:
-        pin: GPIO32
+        pin: ${led_pin}
