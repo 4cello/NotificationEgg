@@ -1,5 +1,5 @@
 platform: template
-name: "Test $color notification"
+name: "${devicename} Test ${color} notification"
 on_press:
   - mqtt.publish:
       topic: "${mqtt_topic}/${color}"

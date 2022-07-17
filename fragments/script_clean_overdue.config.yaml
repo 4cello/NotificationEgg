@@ -1,0 +1,18 @@
+id: clean_overdue_notifications
+mode: single
+then:
+  lambda: |-
+    uint8_t len = sizeof(id(colors)) / sizeof(Color*);
+    auto now = id(sntp_time).now();
+    if (!now.is_valid()) 
+      return;
+    time_t utc = now.timestamp;
+    for (uint8_t i = 0; i < len; i++) {
+      time_t old = id(pending_notifications)[i];
+      if (!old) continue;
+      if (utc >= old) {
+        id(pending_notifications)[i] = 0;
+        id(notification_received)[i] = 0;
+        ESP_LOGI("interval", "reset %u: %li >= %li", i, utc, old);
+      }
+    }

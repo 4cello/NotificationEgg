@@ -1,0 +1,16 @@
+platform: template
+name: "${devicename} Current Notifications"
+id: txt_notifications
+entity_category: diagnostic
+lambda: |-
+  std::string color_names[] = ${color_names};
+  uint8_t len = sizeof(id(colors)) / sizeof(Color*);
+  char buf[100];
+  std::string result = "{";
+  for (uint8_t i = 0; i < len; i++) {
+    sprintf(buf, "\"%s\": %lli%s",
+      color_names[i].c_str(), id(pending_notifications)[i], (i == len - 1) ? "" : ",");
+    result += std::string(buf);
+  }
+  result += std::string("}");
+  return result;

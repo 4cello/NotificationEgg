@@ -28,7 +28,7 @@ then:
               return now.is_valid() && now.timestamp < end;
           then:
             # flash the light and change the display page
-            - script.execute: scroll_next_page
+            - component.update: the_interval
             - repeat:
                 count: 3
                 then:

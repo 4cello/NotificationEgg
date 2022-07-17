@@ -1,5 +1,6 @@
 substitutions:
-  devicename: notification-egg
+  id_code: "4e78" # for differentiating multiple devices
+  devicename: notification-light-${id_code}
 
   # General Parameters
   refresh_interval: 10s
@@ -89,30 +90,14 @@ text_sensor:
 
 interval:
   - interval: ${refresh_interval}
+    id: the_interval
     then:
       - script.execute: clean_overdue_notifications
       - script.execute: scroll_next_page
       - component.update: txt_notifications
 
 script:
-  - id: clean_overdue_notifications
-    mode: single
-    then:
-      lambda: |-
-        uint8_t len = sizeof(id(colors)) / sizeof(Color*);
-        auto now = id(sntp_time).now();
-        if (!now.is_valid()) 
-          return;
-        time_t utc = now.timestamp;
-        for (uint8_t i = 0; i < len; i++) {
-          time_t old = id(pending_notifications)[i];
-          if (!old) continue;
-          if (utc >= old) {
-            id(pending_notifications)[i] = 0;
-            id(notification_received)[i] = 0;
-            ESP_LOGI("interval", "reset %u: %li >= %li", i, utc, old);
-          }
-        }
+  - <<: !include fragments/script_clean_overdue.config.yaml
   - id: scroll_next_page
     mode: single
     then:
@@ -325,108 +310,7 @@ switch:
     restore_mode: ALWAYS_ON
 
 light:
-  - platform: neopixelbus
-    variant: SK6812
-    type: GRBW
-    pin: GPIO32
-    num_leds: 35
-    name: "Notification Light"
-    id: notification_light
-    entity_category: config
-    default_transition_length: 0s
-    flash_transition_length: 0.5s
-    effects:
-      - addressable_lambda:
-          name: "Notification Effect"
-          update_interval: ${light_effect_interval}
-          lambda: |-
-            // ---------- CONFIG START -------------
-            // Width of color spot in pixels
-            #define COLOR_WIDTH 3
-
-            // How far from the end should pixels begin to fade out?
-            #define FADE_OUT 5
-
-            // Brightness of each pixel in a color spot. Length must be == COLOR_WIDTH
-            static const float COLOR_SHAPE[COLOR_WIDTH] = {64,128,64};
-
-            // How many blank pixels between 2 notification spots?
-            static const uint8_t BETWEEN_COLORS = 5;
-
-            // How many blank pixels until starting over?
-            static const uint8_t BETWEEN_CYCLES = 3*it.size();
-            // ---------- CONFIG END ---------------
-
-            // How many notification colors are there?
-            static const uint8_t COLOR_COUNT = sizeof(id(colors)) / sizeof(Color*);
-
-            // Counter for space between color segments
-            static uint8_t cycles_until_next_color = 0;
-
-            // Counter for width of color segments
-            static uint8_t cycles_until_color_ends = COLOR_WIDTH;
-
-            // Counter for current notification color
-            static uint8_t notification_class = 0;
-
-            // Should be named current_color, but that one is already taken :(
-            static Color next_color;
-
-            // shift every pixel over, fading out the last couple ones
-            uint8_t px = it.size()-1;
-            for (; px >= it.size()-FADE_OUT-1; px--) {
-              it[px] = it[px-1].get().darken(255/FADE_OUT);
-            }
-            // shift the rest
-            for (; px > 0; px--) {
-              it[px] = it[px-1].get();
-            }
-
-            // now decide which color the first pixel will be
-            if (cycles_until_next_color > 0) {
-              // no color is being added
-              it[0] = Color::BLACK;
-              cycles_until_next_color--;
-            } else {
-              // there is currently a color being added
-              time_t is_active = id(pending_notifications)[notification_class];
-              if (is_active) {
-                next_color = id(colors)[notification_class];
-              } else {
-                next_color = Color::BLACK;
-              }
-              it[0] = next_color.darken(255-COLOR_SHAPE[cycles_until_color_ends-1]);
-              if (cycles_until_color_ends > 0) {
-                // continue to finish this color
-                cycles_until_color_ends--;
-              } else {
-                // prepare next color
-                cycles_until_color_ends = COLOR_WIDTH;
-                if (notification_class >= COLOR_COUNT-1) {
-                  // we're at notification_class >= COLOR_COUNT-1
-                  // reset notification_class and prepare for full cycle
-                  notification_class = 0;
-                  cycles_until_next_color = BETWEEN_CYCLES;
-                } else {
-                  // we're at some notification_class < COLOR_COUNT - 1
-                  // find the next "non-empty" class
-                  notification_class++;
-                  for (; notification_class < COLOR_COUNT; notification_class++) {
-                    is_active = id(pending_notifications)[notification_class];
-                    if (is_active) {
-                      break;
-                    }
-                  }
-                  if (notification_class < COLOR_COUNT && is_active) {
-                    // there is actually a "non-empty" class
-                    // set its color and prepare small spacing
-                    cycles_until_next_color = BETWEEN_COLORS;
-                  } else {
-                    // we arrived at notification_class == 0 without finding an active class
-                    // reset notification_class and prepare for full cycle
-                    notification_class = 0;
-                    cycles_until_next_color = BETWEEN_CYCLES;
-                  }
-                }
-              }
-            }
+  - <<: !include
+      file: fragments/light.config.yaml
+      vars:
+        pin: GPIO32

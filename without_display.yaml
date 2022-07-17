@@ -1,0 +1,136 @@
+substitutions:
+  id_code: "79a6"
+  devicename: notification-light-${id_code}
+
+  # General Parameters
+  refresh_interval: 10s
+  light_effect_interval: 16ms
+  mqtt_topic: esphome/$devicename/notify # /${color} for each color
+  
+  # Color Parameters
+  num_colors: "6"
+  color_values: |-
+    {
+      Color(255,0,0,0), // red
+      Color(0,255,0,0), // green
+      Color(0,0,255,0), // blue
+      Color(255,255,0,0), // yellow
+      Color(0,255,255,0), // cyan
+      Color(255,0,255,0) // magenta
+    }
+  color_names: '{ "red", "green", "blue", "yellow", "cyan", "magenta" }'
+  empty_array: "{ 0,0,0,0,0,0 }"
+
+  # Button Parameter
+  debug_duration: "60" # (in seconds)
+
+packages:
+  wifi: !include fragments/common/wifi.config.yaml
+  device_base: !include fragments/common/device_base.config.yaml
+
+external_components:
+  - source: github://pr#3625
+    components: [ gc9a01 ]
+
+esphome:
+  platform: ESP8266
+  board: d1_mini
+  on_boot:
+    priority: -200
+    then:
+      - light.turn_on:
+          id: notification_light
+          effect: "Notification Effect"
+
+time:
+  - platform: sntp
+    id: sntp_time
+
+globals:
+  - id: colors
+    type: Color[${num_colors}]
+    initial_value: ${color_values}
+  - id: pending_notifications
+    type: time_t[${num_colors}]
+    initial_value: ${empty_array}
+  - id: notification_received
+    type: time_t[${num_colors}]
+    initial_value: ${empty_array}
+
+text_sensor:
+  - <<: !include fragments/text_status.config.yaml
+
+interval:
+  - interval: ${refresh_interval}
+    id: the_interval
+    then:
+      - script.execute: clean_overdue_notifications
+      - component.update: txt_notifications
+
+script:
+  - <<: !include fragments/script_clean_overdue.config.yaml
+
+mqtt:
+  on_message:
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          index: 0
+          color: red
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          index: 1
+          color: green
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          index: 2
+          color: blue
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          index: 3
+          color: yellow
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          index: 4
+          color: cyan
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          index: 5
+          color: magenta
+
+button:
+  - <<: !include
+      file: fragments/button.config.yaml
+      vars:
+        color: red
+  - <<: !include
+      file: fragments/button.config.yaml
+      vars:
+        color: green
+  - <<: !include
+      file: fragments/button.config.yaml
+      vars:
+        color: blue
+  - <<: !include
+      file: fragments/button.config.yaml
+      vars:
+        color: yellow
+  - <<: !include
+      file: fragments/button.config.yaml
+      vars:
+        color: cyan
+  - <<: !include
+      file: fragments/button.config.yaml
+      vars:
+        color: magenta
+
+light:
+  - <<: !include
+      file: fragments/light.config.yaml
+      vars:
+        pin: D4
