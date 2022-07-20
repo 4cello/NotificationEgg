@@ -1,11 +1,11 @@
 substitutions:
-  id_code: "4e78" # for differentiating multiple devices
+  #id_code: "unique" # for differentiating multiple devices
   devicename: notification-light-${id_code}
 
   # General Parameters
   refresh_interval: 10s
   light_effect_interval: 16ms
-  mqtt_topic: esphome/$devicename/notify # /${color} for each color
+  mqtt_topic_prefix: esphome/notification-light # /${id_code}/notify/${color} for each color
 
   # GPIO Pins
   led_pin: GPIO32
@@ -81,23 +81,8 @@ globals:
     type: time_t[${num_colors}]
     initial_value: ${empty_array}
 
-text_sensor:
-  - platform: template
-    name: Current Notifications
-    id: txt_notifications
-    entity_category: diagnostic
-    lambda: |-
-      std::string color_names[] = ${color_names};
-      uint8_t len = sizeof(id(colors)) / sizeof(Color*);
-      char buf[50];
-      std::string result = "{";
-      for (uint8_t i = 0; i < len; i++) {
-        sprintf(buf, "\"%s\": %li%s",
-          color_names[i].c_str(), id(pending_notifications)[i], (i == len - 1) ? "" : ",");
-        result += std::string(buf);
-      }
-      result += std::string("}");
-      return result;
+#text_sensor:
+#  - <<: !include fragments/text_status.config.yaml
 
 interval:
   - interval: ${refresh_interval}
@@ -105,7 +90,7 @@ interval:
     then:
       - script.execute: clean_overdue_notifications
       - script.execute: scroll_next_page
-      - component.update: txt_notifications
+#      - component.update: txt_notifications
 
 script:
   - <<: !include fragments/script_clean_overdue.config.yaml
@@ -163,41 +148,84 @@ script:
 
 
 mqtt:
+  topic_prefix: ${mqtt_topic_prefix}/${id_code}
   on_message:
     - <<: !include
         file: fragments/mqttsub.config.yaml
         vars:
+          topic: ${id_code}
           index: 0
           color: red
     - <<: !include
         file: fragments/mqttsub.config.yaml
         vars:
+          topic: "*"
+          index: 0
+          color: red
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          topic: ${id_code}
           index: 1
           color: green
     - <<: !include
         file: fragments/mqttsub.config.yaml
         vars:
+          topic: "*"
+          index: 1
+          color: green
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          topic: ${id_code}
           index: 2
           color: blue
     - <<: !include
         file: fragments/mqttsub.config.yaml
         vars:
+          topic: "*"
+          index: 2
+          color: blue
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          topic: ${id_code}
           index: 3
           color: yellow
     - <<: !include
         file: fragments/mqttsub.config.yaml
         vars:
+          topic: "*"
+          index: 3
+          color: yellow
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          topic: ${id_code}
           index: 4
           color: cyan
     - <<: !include
         file: fragments/mqttsub.config.yaml
         vars:
+          topic: "*"
+          index: 4
+          color: cyan
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          topic: ${id_code}
+          index: 5
+          color: magenta
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          topic: "*"
           index: 5
           color: magenta
 
 button:
   - platform: template
-    name: "Cycle display page"
+    name: "$devicename Cycle display page"
     on_press:
       - script.execute: scroll_next_page
   - <<: !include
@@ -316,7 +344,7 @@ display:
 switch:
   - platform: gpio
     pin: ${display_on_off_pin}
-    name: "Display on/off"
+    name: "$devicename Display on/off"
     id: display_switch
     restore_mode: ALWAYS_ON
 

@@ -1,11 +1,12 @@
 substitutions:
-  id_code: "79a6"
+  #id_code: "unique" # for differentiating multiple devices
   devicename: notification-light-${id_code}
 
   # General Parameters
   refresh_interval: 10s
   light_effect_interval: 16ms
-  mqtt_topic: esphome/$devicename/notify # /${color} for each color
+  mqtt_topic_prefix: esphome/notification-light # /${id_code}/notify/${color} for each color
+  length_mqtt_topic_prefix: "26" # need this to match ${id_code} and * in the MQTT subscription
   
   # GPIO Pins
   led_pin: D4
@@ -30,10 +31,6 @@ substitutions:
 packages:
   wifi: !include fragments/common/wifi.config.yaml
   device_base: !include fragments/common/device_base.config.yaml
-
-external_components:
-  - source: github://pr#3625
-    components: [ gc9a01 ]
 
 esphome:
   platform: ESP8266
@@ -60,51 +57,95 @@ globals:
     type: time_t[${num_colors}]
     initial_value: ${empty_array}
 
-text_sensor:
-  - <<: !include fragments/text_status.config.yaml
+#text_sensor:
+#  - <<: !include fragments/text_status.config.yaml
 
 interval:
   - interval: ${refresh_interval}
     id: the_interval
     then:
       - script.execute: clean_overdue_notifications
-      - component.update: txt_notifications
+#      - component.update: txt_notifications
 
 script:
   - <<: !include fragments/script_clean_overdue.config.yaml
 
 mqtt:
+  topic_prefix: ${mqtt_topic_prefix}/${id_code}
   on_message:
     - <<: !include
         file: fragments/mqttsub.config.yaml
         vars:
+          topic: ${id_code}
           index: 0
           color: red
     - <<: !include
         file: fragments/mqttsub.config.yaml
         vars:
+          topic: "*"
+          index: 0
+          color: red
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          topic: ${id_code}
           index: 1
           color: green
     - <<: !include
         file: fragments/mqttsub.config.yaml
         vars:
+          topic: "*"
+          index: 1
+          color: green
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          topic: ${id_code}
           index: 2
           color: blue
     - <<: !include
         file: fragments/mqttsub.config.yaml
         vars:
+          topic: "*"
+          index: 2
+          color: blue
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          topic: ${id_code}
           index: 3
           color: yellow
     - <<: !include
         file: fragments/mqttsub.config.yaml
         vars:
+          topic: "*"
+          index: 3
+          color: yellow
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          topic: ${id_code}
           index: 4
           color: cyan
     - <<: !include
         file: fragments/mqttsub.config.yaml
         vars:
+          topic: "*"
+          index: 4
+          color: cyan
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          topic: ${id_code}
           index: 5
           color: magenta
+    - <<: !include
+        file: fragments/mqttsub.config.yaml
+        vars:
+          topic: "*"
+          index: 5
+          color: magenta
+
 
 button:
   - <<: !include

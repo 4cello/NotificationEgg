@@ -2,7 +2,7 @@ platform: template
 name: "${devicename} Test ${color} notification"
 on_press:
   - mqtt.publish:
-      topic: "${mqtt_topic}/${color}"
+      topic: "${mqtt_topic_prefix}/${id_code}/notify/${color}"
       payload: !lambda |-
         char buf[32]; 
         return itoa(id(sntp_time).now().timestamp + ${debug_duration}, buf, 10);

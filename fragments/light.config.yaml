@@ -18,7 +18,7 @@ effects:
         #define COLOR_WIDTH 3
 
         // How far from the end should pixels begin to fade out?
-        #define FADE_OUT 5
+        #define FADE_OUT 1
 
         // Brightness of each pixel in a color spot. Length must be == COLOR_WIDTH
         static const float COLOR_SHAPE[COLOR_WIDTH] = {64,128,64};

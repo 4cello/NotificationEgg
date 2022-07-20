@@ -1,4 +1,4 @@
-topic: "${mqtt_topic}/${color}"
+topic: "${mqtt_topic_prefix}/${topic}/notify/${color}"
 then:
 - logger.log:
     level: INFO
