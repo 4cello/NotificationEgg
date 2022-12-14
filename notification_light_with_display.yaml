@@ -283,8 +283,8 @@ image:
     id: img_window
     resize: 160x160
     type: TRANSPARENT_BINARY
-  - file: "resources/phone.png"
-    id: img_phone
+  - file: "resources/3dprinter.png"
+    id: img_3dprinter
     resize: 160x160
     type: TRANSPARENT_BINARY
 
@@ -339,7 +339,7 @@ display:
           file: fragments/display_page.config.yaml
           vars:
             page_index: 5
-            image: img_phone
+            image: img_3dprinter
 
 switch:
   - platform: gpio

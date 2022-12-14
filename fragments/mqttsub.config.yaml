@@ -5,12 +5,12 @@ then:
     format: "Received new timestamp for ${color}: %s"
     args: ["x.c_str()" ]
 - if:
-    # check if received timestamp > last known timestamp
+    # check if received timestamp > last known timestamp and > 1
     condition:
       lambda: |-
         time_t end = atoll(x.c_str());
         time_t old = id(pending_notifications)[${index}];
-        return end > old;
+        return end > 1 && end > old;
     then:
       # received timestamp > last known timestamp:
       #   -> set new timestamp
@@ -50,11 +50,11 @@ then:
                 effect: Notification Effect
     else:
       # received timestamp <= last known timestamp:
-      #   -> cancel notification if timestamp == 0
+      #   -> cancel notification if timestamp <= 1
       - lambda: |-
           time_t end = atoll(x.c_str());
           time_t old = id(pending_notifications)[${index}];
-          if (end == 0) {
+          if (end <= 1) {
             id(pending_notifications)[${index}] = 0;
             id(notification_received)[${index}] = 0;
           }
